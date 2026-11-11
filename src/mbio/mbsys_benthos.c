@@ -67,6 +67,8 @@ int mbsys_benthos_alloc(int verbose, void *mbio_ptr, void **store_ptr, int *erro
 
 	/* type of data record */
 	store->kind = MB_DATA_NONE; /* Data kind */
+	store->ssportweight = 0;
+	store->ssstbdweight = 0;
 
 	/* type of sonar */
 	store->sonar = MBSYS_BENTHOS_UNKNOWN; /* Type of Reson sonar */
@@ -918,6 +920,10 @@ int mbsys_benthos_makess(int verbose, void *mbio_ptr, void *store_ptr,
 			ss_cnt[i] = 0;
 		}
 
+		/* raw samples carry a per-side power-of-two scale (XTF Weight) */
+		const double portscale = ldexp(1.0, -store->ssportweight);
+		const double stbdscale = ldexp(1.0, -store->ssstbdweight);
+
 		/* get raw pixel size */
 		const double ss_spacing = store->ssrawtimeduration / store->ssrawportsamples;
 
@@ -955,7 +961,7 @@ int mbsys_benthos_makess(int verbose, void *mbio_ptr, void *store_ptr,
 				xtrackss = -sqrt(pow(0.5 * ss_spacing * (store->ssrawportsamples - i) * store->png_computedsv, 2) -
 				                 pow(store->bath[0], 2));
 			}
-			ss[i] += store->ssrawport[i];
+			ss[i] += store->ssrawport[i] * portscale;
 			ssacrosstrack[i] = xtrackss;
 			ss_cnt[i]++;
 		}
@@ -970,7 +976,7 @@ int mbsys_benthos_makess(int verbose, void *mbio_ptr, void *store_ptr,
 			else {
 				xtrackss = sqrt(pow(0.5 * ss_spacing * i * store->png_computedsv, 2) - pow(store->bath[0], 2));
 			}
-			ss[i + store->ssrawportsamples] += store->ssrawstbd[i];
+			ss[i + store->ssrawportsamples] += store->ssrawstbd[i] * stbdscale;
 			ssacrosstrack[i + store->ssrawportsamples] = xtrackss;
 			ss_cnt[i + store->ssrawportsamples]++;
 		}

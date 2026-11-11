@@ -308,7 +308,9 @@ struct mbf_xtfpingchanheader {
 	                 /* or later must be set in */
 	                 /* XTFFILEHEADER.RecordingProgramVersion */
 
-	mb_u_char ReservedSpace[6]; /* reserved for future expansion */
+	short Weight;               /* samples are scaled: value = sample / 2^Weight (block floating point,
+	                               mandatory for Kongsberg SAS, sonar type 48, and EdgeTech systems) */
+	mb_u_char ReservedSpace[4]; /* reserved for future expansion */
 };
 
 struct mbf_xftnotesheader {
@@ -499,6 +501,8 @@ int mbr_alm_xtfb1624(int verbose, void *mbio_ptr, int *error) {
 	mb_io_ptr->data_structure_size = 0;
 	int status = mb_mallocd(verbose, __FILE__, __LINE__, mb_io_ptr->structure_size, &mb_io_ptr->raw_data, error);
 	status &= mb_mallocd(verbose, __FILE__, __LINE__, sizeof(struct mbsys_benthos_struct), &mb_io_ptr->store_data, error);
+	if (status == MB_SUCCESS)
+		memset(mb_io_ptr->store_data, 0, sizeof(struct mbsys_benthos_struct));
 
 	/* set saved flags */
 	int *fileheaderread = (int *)&(mb_io_ptr->save1);
@@ -1122,7 +1126,9 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 				index++;
 				mb_get_binary_float(true, &line[index], &(pingchanportheader->FixedVSOP));
 				index += 4;
-				for (int i = 0; i < 6; i++) {
+				mb_get_binary_short(true, &line[index], &(pingchanportheader->Weight));
+				index += 2;
+				for (int i = 0; i < 4; i++) {
 					pingchanportheader->ReservedSpace[i] = (mb_u_char)line[index];
 					index++;
 				}
@@ -1144,6 +1150,7 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 			        (fileheader->NumberOfSonarChannels + fileheader->NumberOfBathymetryChannels - 1)
 			    || pingchanportheader->ChannelNumber >= 6
 			    || pingchanportheader->NumSamples > MBF_XTFB1624_MAXRAWPIXELS
+			    || pingchanportheader->Weight < -16 || pingchanportheader->Weight > 16
 			    || (size_t)pingchanportheader->NumSamples
 			               * fileheader->chaninfo[pingchanportheader->ChannelNumber].BytesPerSample
 			           > MBF_XTFB1624_MAXLINE) {
@@ -1236,7 +1243,9 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 				index++;
 				mb_get_binary_float(true, &line[index], &(pingchanstbdheader->FixedVSOP));
 				index += 4;
-				for (int i = 0; i < 6; i++) {
+				mb_get_binary_short(true, &line[index], &(pingchanstbdheader->Weight));
+				index += 2;
+				for (int i = 0; i < 4; i++) {
 					pingchanstbdheader->ReservedSpace[i] = (mb_u_char)line[index];
 					index++;
 				}
@@ -1258,6 +1267,7 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 			        (fileheader->NumberOfSonarChannels + fileheader->NumberOfBathymetryChannels - 1)
 			    || pingchanstbdheader->ChannelNumber >= 6
 			    || pingchanstbdheader->NumSamples > MBF_XTFB1624_MAXRAWPIXELS
+			    || pingchanstbdheader->Weight < -16 || pingchanstbdheader->Weight > 16
 			    || (size_t)pingchanstbdheader->NumSamples
 			               * fileheader->chaninfo[pingchanstbdheader->ChannelNumber].BytesPerSample
 			           > MBF_XTFB1624_MAXLINE) {
@@ -1397,7 +1407,8 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 				fprintf(stderr, "dbg5       ContactCloseNumber:         %d\n", pingchanportheader->ContactCloseNumber);
 				fprintf(stderr, "dbg5       Reserved2:                  %d\n", pingchanportheader->Reserved2);
 				fprintf(stderr, "dbg5       FixedVSOP:                  %f\n", pingchanportheader->FixedVSOP);
-				for (int i = 0; i < 6; i++)
+				fprintf(stderr, "dbg5       Weight:                     %d\n", pingchanportheader->Weight);
+				for (int i = 0; i < 4; i++)
 					fprintf(stderr, "dbg5       ReservedSpace[%2.2d]:          %d\n", i, pingchanportheader->ReservedSpace[i]);
 				fprintf(stderr, "dbg5       ChannelNumber:              %d\n", pingchanstbdheader->ChannelNumber);
 				fprintf(stderr, "dbg5       DownsampleMethod:           %d\n", pingchanstbdheader->DownsampleMethod);
@@ -1421,7 +1432,8 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 				fprintf(stderr, "dbg5       ContactCloseNumber:         %d\n", pingchanstbdheader->ContactCloseNumber);
 				fprintf(stderr, "dbg5       Reserved2:                  %d\n", pingchanstbdheader->Reserved2);
 				fprintf(stderr, "dbg5       FixedVSOP:                  %f\n", pingchanstbdheader->FixedVSOP);
-				for (int i = 0; i < 6; i++)
+				fprintf(stderr, "dbg5       Weight:                     %d\n", pingchanstbdheader->Weight);
+				for (int i = 0; i < 4; i++)
 					fprintf(stderr, "dbg5       ReservedSpace[%2.2d]:          %d\n", i, pingchanstbdheader->ReservedSpace[i]);
 				for (unsigned int i = 0; i < MAX(pingchanportheader->NumSamples, pingchanstbdheader->NumSamples); i++)
 					fprintf(stderr, "dbg5       sidescan[%4.4d]: %d %d\n", i, data->ssrawport[i], data->ssrawstbd[i]);
@@ -1779,6 +1791,8 @@ int mbr_rt_xtfb1624(int verbose, void *mbio_ptr, void *store_ptr, int *error) {
 		store->ssstbdinitgain = data->pingchanstbdheader.InitialGainCode;
 		store->ssportgain = data->pingchanportheader.GainCode;
 		store->ssstbdgain = data->pingchanstbdheader.GainCode;
+		store->ssportweight = data->pingchanportheader.Weight;
+		store->ssstbdweight = data->pingchanstbdheader.Weight;
 
 		store->ssrawportsamples = data->pingchanportheader.NumSamples;
 		store->ssrawstbdsamples = data->pingchanstbdheader.NumSamples;

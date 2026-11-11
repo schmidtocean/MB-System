@@ -128,6 +128,8 @@ struct mbsys_benthos_struct {
 	unsigned short ssstbdinitgain;
 	unsigned short ssportgain;
 	unsigned short ssstbdgain;
+	short ssportweight; /* XTF Weight: sample values are raw / 2^weight */
+	short ssstbdweight;
 
 	unsigned short ssrawportsamples;                      /* number of port raw sidescan samples */
 	unsigned short ssrawstbdsamples;                      /* number of stbd raw sidescan samples */
