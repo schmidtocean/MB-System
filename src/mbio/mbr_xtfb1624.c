@@ -55,7 +55,7 @@
 // #define MBF_XTFB1624_MAXBEAMS 1
 #define MBF_XTFB1624_MAXRAWPIXELS 15360
 #define MBF_XTFB1624_COMMENT_LENGTH 200
-#define MBF_XTFB1624_MAXLINE 16384
+#define MBF_XTFB1624_MAXLINE 65536
 static const size_t MBF_XTFB1624_FILEHEADERLEN = 1024;
 // #define XTF_MAGIC_NUMBER 0xFACE
 static const mb_u_char XTF_DATA_SIDESCAN = 0;
@@ -1138,9 +1138,15 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 				done = true;
 			}
 
-			/* check for corrupted record */
+			/* check for corrupted record: the channel must be one of the six described in the
+			   file header, and its samples must fit the raw sidescan array and the read buffer */
 			if (pingchanportheader->ChannelNumber >
-			    (fileheader->NumberOfSonarChannels + fileheader->NumberOfBathymetryChannels - 1)) {
+			        (fileheader->NumberOfSonarChannels + fileheader->NumberOfBathymetryChannels - 1)
+			    || pingchanportheader->ChannelNumber >= 6
+			    || pingchanportheader->NumSamples > MBF_XTFB1624_MAXRAWPIXELS
+			    || (size_t)pingchanportheader->NumSamples
+			               * fileheader->chaninfo[pingchanportheader->ChannelNumber].BytesPerSample
+			           > MBF_XTFB1624_MAXLINE) {
 				status = MB_FAILURE;
 				*error = MB_ERROR_UNINTELLIGIBLE;
 			}
@@ -1246,9 +1252,15 @@ int mbr_xtfb1624_rd_data(int verbose, void *mbio_ptr, int *error) {
 				done = true;
 			}
 
-			/* check for corrupted record */
+			/* check for corrupted record: the channel must be one of the six described in the
+			   file header, and its samples must fit the raw sidescan array and the read buffer */
 			if (pingchanstbdheader->ChannelNumber >
-			    (fileheader->NumberOfSonarChannels + fileheader->NumberOfBathymetryChannels - 1)) {
+			        (fileheader->NumberOfSonarChannels + fileheader->NumberOfBathymetryChannels - 1)
+			    || pingchanstbdheader->ChannelNumber >= 6
+			    || pingchanstbdheader->NumSamples > MBF_XTFB1624_MAXRAWPIXELS
+			    || (size_t)pingchanstbdheader->NumSamples
+			               * fileheader->chaninfo[pingchanstbdheader->ChannelNumber].BytesPerSample
+			           > MBF_XTFB1624_MAXLINE) {
 				status = MB_FAILURE;
 				*error = MB_ERROR_UNINTELLIGIBLE;
 			}
