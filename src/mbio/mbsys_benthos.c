@@ -961,7 +961,13 @@ int mbsys_benthos_makess(int verbose, void *mbio_ptr, void *store_ptr,
 				xtrackss = -sqrt(pow(0.5 * ss_spacing * (store->ssrawportsamples - i) * store->png_computedsv, 2) -
 				                 pow(store->bath[0], 2));
 			}
-			ss[i] += store->ssrawport[i] * portscale;
+			/* samples from inside the altitude (water column) have no seafloor position, and zero
+			   samples carry no data (Kongsberg HISAS SAS imagery beyond the processed range):
+			   null them rather than stacking them at nadir */
+			if (xtrackss == 0.0 || store->ssrawport[i] == 0)
+				ss[i] = MB_SIDESCAN_NULL;
+			else
+				ss[i] += store->ssrawport[i] * portscale;
 			ssacrosstrack[i] = xtrackss;
 			ss_cnt[i]++;
 		}
@@ -976,7 +982,10 @@ int mbsys_benthos_makess(int verbose, void *mbio_ptr, void *store_ptr,
 			else {
 				xtrackss = sqrt(pow(0.5 * ss_spacing * i * store->png_computedsv, 2) - pow(store->bath[0], 2));
 			}
-			ss[i + store->ssrawportsamples] += store->ssrawstbd[i] * stbdscale;
+			if (xtrackss == 0.0 || store->ssrawstbd[i] == 0)
+				ss[i + store->ssrawportsamples] = MB_SIDESCAN_NULL;
+			else
+				ss[i + store->ssrawportsamples] += store->ssrawstbd[i] * stbdscale;
 			ssacrosstrack[i + store->ssrawportsamples] = xtrackss;
 			ss_cnt[i + store->ssrawportsamples]++;
 		}
