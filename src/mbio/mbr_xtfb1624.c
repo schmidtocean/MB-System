@@ -418,7 +418,7 @@ int mbr_info_xtfb1624(int verbose, int *system, int *beams_bath_max, int *beams_
 	*attitude_source = MB_DATA_DATA;
 	*svp_source = MB_DATA_VELOCITY_PROFILE;
 	*beamwidth_xtrack = 2.0;
-	*beamwidth_ltrack = 2.0;
+	*beamwidth_ltrack = 0.01;
 
 	const int status = MB_SUCCESS;
 

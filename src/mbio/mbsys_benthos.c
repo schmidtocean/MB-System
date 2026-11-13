@@ -268,7 +268,8 @@ int mbsys_benthos_extract(int verbose, void *mbio_ptr, void *store_ptr, int *kin
 		*speed = store->png_speed;
 
 		/* set beamwidths in mb_io structure */
-		mb_io_ptr->beamwidth_ltrack = 2.0;
+		/* HISAS SAS images are focused to a few cm along track at every range: a 2 deg sidescan beam smears them by meters */
+		mb_io_ptr->beamwidth_ltrack = 0.01;
 		mb_io_ptr->beamwidth_xtrack = 2.0;
 
 		/* read distance and depth values into storage arrays */
